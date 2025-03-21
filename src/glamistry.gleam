@@ -339,10 +339,13 @@ pub fn parse(tokens: List(Token)) -> Result(Ast, Nil) {
   use #(open_parenthesis, tokens) <- result.try(get_next_token(tokens))
   use _ <- result.try(parse_open_parenthesis(open_parenthesis))
 
+  // TODO: parse every row
   use #(row_name, tokens) <- result.try(parse_maybe_quoted_identifier(tokens))
 
   use #(row_type_token, _tokens) <- result.try(get_next_token(tokens))
   use row_type <- result.try(parse_identifier_type(row_type_token))
+
+  // TODO: parse the entire list of tokens
 
   Ok(TableAst(table_name, [Column(row_name, row_type)]))
 }
