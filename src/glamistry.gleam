@@ -6,7 +6,8 @@ pub fn main() {
   let data =
     "
     create table test (
-    	`id` integer, 
+    	`id` integer,
+      name integer,
     )
     "
 
@@ -275,15 +276,15 @@ fn take_content(
   }
 }
 
-pub type Ast {
-  TableAst(name: String, columns: List(Column))
+pub type TableAst {
+  TableAst(name: String, columns: List(ColumnAst))
 }
 
-pub type Column {
-  Column(name: String, column_type: Type)
+pub type ColumnAst {
+  ColumnAst(name: String, column_type: TypeAst)
 }
 
-pub type Type {
+pub type TypeAst {
   TinyintType
   SmallintType
   MediumintType
@@ -326,31 +327,70 @@ pub type Type {
 
 // create table wibble ()
 
-pub fn parse(tokens: List(Token)) -> Result(Ast, Nil) {
+pub fn parse(tokens: List(Token)) -> Result(TableAst, Nil) {
+  parse_table(tokens)
+}
+
+fn parse_table(tokens: List(Token)) -> Result(TableAst, Nil) {
   use #(create, tokens) <- result.try(get_next_token(tokens))
-  use _ <- result.try(parse_create(create))
+  use _ <- result.try(parse_create_token(create))
 
   use #(table, tokens) <- result.try(get_next_token(tokens))
-  use _ <- result.try(parse_table(table))
+  use _ <- result.try(parse_table_token(table))
 
   use #(identifer, tokens) <- result.try(get_next_token(tokens))
   use table_name <- result.try(identifier_to_string(identifer))
 
-  use #(open_parenthesis, tokens) <- result.try(get_next_token(tokens))
-  use _ <- result.try(parse_open_parenthesis(open_parenthesis))
+  use #(open_parenthesis_token, tokens) <- result.try(get_next_token(tokens))
+  use _ <- result.try(parse_open_parenthesis_token(open_parenthesis_token))
 
-  // TODO: parse every row
-  use #(row_name, tokens) <- result.try(parse_maybe_quoted_identifier(tokens))
+  use #(columns_ast, tokens) <- result.try(parse_columns(tokens, []))
 
-  use #(row_type_token, _tokens) <- result.try(get_next_token(tokens))
-  use row_type <- result.try(parse_identifier_type(row_type_token))
+  use #(close_parenthesis_token, _) <- result.try(get_next_token(tokens))
+  use _ <- result.try(parse_close_parenthesis_token(close_parenthesis_token))
 
-  // TODO: parse the entire list of tokens
-
-  Ok(TableAst(table_name, [Column(row_name, row_type)]))
+  Ok(TableAst(table_name, columns_ast))
 }
 
-fn parse_identifier_type(token: Token) -> Result(Type, Nil) {
+pub fn parse_columns(
+  tokens: List(Token),
+  columns: List(ColumnAst),
+) -> Result(#(List(ColumnAst), List(Token)), Nil) {
+  case tokens {
+    [Identifier(_), ..] | [Backtick, Identifier(_), Backtick, ..] -> {
+      use #(column_ast, tokens) <- result.try(parse_column(tokens))
+      let columns = list.append(columns, [column_ast])
+      parse_columns(tokens, columns)
+    }
+    [CloseParenthesis] | [CloseParenthesis, ..] -> Ok(#(columns, tokens))
+    _ -> {
+      Error(Nil)
+    }
+  }
+}
+
+fn parse_column(tokens: List(Token)) -> Result(#(ColumnAst, List(Token)), Nil) {
+  use #(row_name, tokens) <- result.try(parse_maybe_quoted_identifier_token(
+    tokens,
+  ))
+
+  use #(row_type_token, tokens) <- result.try(get_next_token(tokens))
+  use row_type <- result.try(parse_identifier_type_token(row_type_token))
+
+  use #(comma_token, tokens) <- result.try(get_next_token(tokens))
+  use _ <- result.try(parse_comma_token(comma_token))
+
+  Ok(#(ColumnAst(row_name, row_type), tokens))
+}
+
+fn parse_comma_token(token: Token) -> Result(Nil, Nil) {
+  case token {
+    Comma -> Ok(Nil)
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_identifier_type_token(token: Token) -> Result(TypeAst, Nil) {
   case token {
     Bigint -> Ok(BigintType)
     Binary -> Ok(BinaryType)
@@ -394,14 +434,16 @@ fn parse_identifier_type(token: Token) -> Result(Type, Nil) {
   }
 }
 
-fn parse_maybe_quoted_identifier(
+fn parse_maybe_quoted_identifier_token(
   tokens: List(Token),
 ) -> Result(#(String, List(Token)), Nil) {
   case list.take(tokens, 3) {
     [Backtick, Identifier(value), Backtick] -> {
       Ok(#(value, list.drop(tokens, 3)))
     }
-    [Identifier(value), _, _] -> Ok(#(value, tokens))
+    [Identifier(value), _, _] -> {
+      Ok(#(value, list.drop(tokens, 1)))
+    }
     _ -> Error(Nil)
   }
 }
@@ -419,23 +461,30 @@ fn get_next_token(tokens: List(Token)) -> Result(#(Token, List(Token)), Nil) {
   Ok(#(token, list))
 }
 
-fn parse_create(token: Token) -> Result(Nil, Nil) {
+fn parse_create_token(token: Token) -> Result(Nil, Nil) {
   case token {
     Create -> Ok(Nil)
     _ -> Error(Nil)
   }
 }
 
-fn parse_table(token: Token) -> Result(Nil, Nil) {
+fn parse_table_token(token: Token) -> Result(Nil, Nil) {
   case token {
     Table -> Ok(Nil)
     _ -> Error(Nil)
   }
 }
 
-fn parse_open_parenthesis(token: Token) -> Result(Nil, Nil) {
+fn parse_open_parenthesis_token(token: Token) -> Result(Nil, Nil) {
   case token {
     OpenParenthesis -> Ok(Nil)
+    _ -> Error(Nil)
+  }
+}
+
+fn parse_close_parenthesis_token(token: Token) -> Result(Nil, Nil) {
+  case token {
+    CloseParenthesis -> Ok(Nil)
     _ -> Error(Nil)
   }
 }
