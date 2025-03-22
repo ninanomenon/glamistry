@@ -7,7 +7,7 @@ pub fn main() {
     "
     create table test (
     	`id` integer,
-      name integer,
+      Name integer,
     )
     "
 
@@ -138,10 +138,10 @@ fn lexer(input: String, tokens: List(Token)) -> Result(List(Token), Nil) {
     | "_" <> _ -> {
       let #(name, rest) = take_content(input, "", is_name_grapheme)
 
-      case name {
-        "create" | "CREATE" -> lexer(rest, list.append(tokens, [Create]))
-        "database" | "DATABASE" -> lexer(rest, list.append(tokens, [Database]))
-        "table" | "TABLE" -> lexer(rest, list.append(tokens, [Table]))
+      case string.lowercase(name) {
+        "create" -> lexer(rest, list.append(tokens, [Create]))
+        "database" -> lexer(rest, list.append(tokens, [Database]))
+        "table" -> lexer(rest, list.append(tokens, [Table]))
         "tinyint" -> lexer(rest, list.append(tokens, [Tinyint]))
         "smallint" -> lexer(rest, list.append(tokens, [Smallint]))
         "mediumint" -> lexer(rest, list.append(tokens, [Mediumint]))
@@ -181,7 +181,7 @@ fn lexer(input: String, tokens: List(Token)) -> Result(List(Token), Nil) {
         "geometrycollection" ->
           lexer(rest, list.append(tokens, [Geometrycollection]))
         "json" -> lexer(rest, list.append(tokens, [Json]))
-        name -> lexer(rest, list.append(tokens, [Identifier(name)]))
+        _ -> lexer(rest, list.append(tokens, [Identifier(name)]))
       }
     }
 
