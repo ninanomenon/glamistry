@@ -15,6 +15,7 @@ pub fn main() {
   parse(lex) |> echo
 }
 
+// Lexer -----------------------------------------------------------------------
 pub type Token {
   Identifier(name: String)
 
@@ -276,6 +277,7 @@ fn take_content(
   }
 }
 
+// Parser ----------------------------------------------------------------------
 pub type TableAst {
   TableAst(name: String, columns: List(ColumnAst))
 }
@@ -324,8 +326,6 @@ pub type TypeAst {
   GeometrycollectionType
   JsonType
 }
-
-// create table wibble ()
 
 pub fn parse(tokens: List(Token)) -> Result(TableAst, Nil) {
   parse_table(tokens)
@@ -487,4 +487,10 @@ fn parse_close_parenthesis_token(token: Token) -> Result(Nil, Nil) {
     CloseParenthesis -> Ok(Nil)
     _ -> Error(Nil)
   }
+}
+
+// Codegen ---------------------------------------------------------------------
+// TODO: implement python codegen
+pub fn codegen() {
+  todo
 }
